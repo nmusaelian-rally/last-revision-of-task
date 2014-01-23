@@ -23,14 +23,9 @@ Ext.define('CustomApp', {
                            },
                            select: function(combobox){
 			    console.log('select');
-			    /*
-				if (this._c) {
-				    console.log('rev panel exists');
-				    Ext.getCmp(that._c).html = '';
-				}
-				else{
-				    console.log('c does not exist');
-				}*/
+			    if (this.down('#c').html !== 'No task is selected') {
+				Ext.getCmp('c').update('No task is selected');
+			    }
                                 this._onUserSelected(combobox.getRecord());
                            },
                             scope: this
@@ -44,12 +39,18 @@ Ext.define('CustomApp', {
 		    },
 		    {
                     xtype: 'panel',
-                    title: 'Revisions',
+                    title: 'Last Revision',
                     itemId: 'childPanel2'
 		    }
                 ],
             });
-            this.add(panel);  
+	   
+	    
+            this.add(panel);
+	    this.down('#childPanel2').add({
+		id: 'c',
+		html: 'No task is selected'
+	    });
         },
         
         _onUserSelected:function(record){
@@ -105,8 +106,6 @@ Ext.define('CustomApp', {
                 RevisionNumber: 'not loaded'
             });
         }, this);
-
-       // this._getRevisionHistory(data);
        this._updateGrid(store,data);
     },
 
@@ -139,10 +138,6 @@ Ext.define('CustomApp', {
 						    text: 'see',
 						    width: 50,
 						    handler: function () {
-							//Ext.Msg.alert('Info', r.get('RevisionHistory')._ref)
-				                        //that.getRevisions(r.get('RevisionHistory')._ref);
-							//var rref = r.get('RevisionHistory')._ref;
-							//console.log(r.get('RevisionHistory')._ref);
 							console.log('r', r.data);
 							that._getRevisionHistory(data, r.data);
 						    }
@@ -202,15 +197,7 @@ Ext.define('CustomApp', {
     },
     
     _displayLastRevision:function(desc, num){
-	if (this.down('c')) {
-	    Ext.getCmp(this._c).html = '';
-	}
-	this._c = Ext.create('Ext.Component',{
-	    xtype: 'component',
-	    id: 'c',
-	    html: '<b>Description:</b>' + desc + '<br /><b>Revision Number:</b>' + num
-	});
-	this.down('#childPanel2').add(this._c);
+	Ext.getCmp('c').update('<b>Description:</b>' + desc + '<br /><b>Revision Number:</b>' + num);
 
     }
 });
