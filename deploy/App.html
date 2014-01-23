@@ -51,6 +51,7 @@ Ext.define('CustomApp', {
 		    {
                     xtype: 'panel',
                     title: 'Last Revision',
+		    width: 600,
                     itemId: 'childPanel2'
 		    }
                 ],
@@ -60,6 +61,11 @@ Ext.define('CustomApp', {
             this.add(panel);
 	    this.down('#childPanel2').add({
 		id: 'c',
+		padding: 10,
+		maxWidth: 600,
+		maxHeight: 400,
+		overflowX: 'auto',
+		overflowY: 'auto',
 		html: 'No task is selected'
 	    });
         },
@@ -167,8 +173,6 @@ Ext.define('CustomApp', {
     _getRevisionHistory: function(taskList, task) {
 	this._task = task;
 	console.log('_getRevisionHistory');
-		console.log(taskList);
-		console.log(task);
                 this._revisionModel = Rally.data.ModelFactory.getModel({
                     type: 'RevisionHistory',
                     scope: this,
@@ -201,14 +205,16 @@ Ext.define('CustomApp', {
     },
     
     _onRevisionsLoaded: function(revisions, record) {
+	console.log(record);
         var lastRev = _.first(revisions).data;
-	console.log('_onRevisionsLoaded: ',lastRev.Description, lastRev.RevisionNumber );
-	this._displayLastRevision(lastRev.Description,lastRev.RevisionNumber );
+	console.log('_onRevisionsLoaded: ',lastRev.Description, lastRev.RevisionNumber, lastRev.CreationDate );
+	this._displayLastRevision(lastRev.Description,lastRev.RevisionNumber, lastRev.CreationDate );
 	
     },
     
-    _displayLastRevision:function(desc, num){
-	Ext.getCmp('c').update('<b>Description:</b>' + desc + '<br /><b>Revision Number:</b>' + num);
+    _displayLastRevision:function(desc, num, date){
+	
+	Ext.getCmp('c').update('<b>' + this._task.FormattedID + '</b><br/><b>Revision CreationDate: </b>' + date +'<br /><b>Description:</b>' + desc + '<br /><b>Revision Number:</b>' + num + '<br />');
 
     }
 });
