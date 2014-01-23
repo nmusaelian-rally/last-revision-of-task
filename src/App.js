@@ -3,9 +3,10 @@ Ext.define('CustomApp', {
     componentCls: 'app',
 
         launch: function() {
-	    var context  = this.getContext (); // Rally.app.App.getContext
+	    var context  = this.getContext (); 
 	    var currentProject = context.getProject()._ref;
 	    console.log('current project:', currentProject);
+	    var that = this;
 	    var panel = Ext.create('Ext.panel.Panel', {
                 layout: 'hbox',
                 itemId: 'parentPanel',
@@ -13,13 +14,23 @@ Ext.define('CustomApp', {
                 items: [
 		    {
                     xtype: 'rallyusersearchcombobox',
-                    fieldLabel: 'select user',
+                    fieldLabel: 'SELECT USER:',
 		    project: currentProject,
                         listeners:{
                             ready: function(combobox){
+				console.log('ready');
                                 this._onUserSelected(combobox.getRecord());
                            },
                            select: function(combobox){
+			    console.log('select');
+			    /*
+				if (this._c) {
+				    console.log('rev panel exists');
+				    Ext.getCmp(that._c).html = '';
+				}
+				else{
+				    console.log('c does not exist');
+				}*/
                                 this._onUserSelected(combobox.getRecord());
                            },
                             scope: this
@@ -28,7 +39,7 @@ Ext.define('CustomApp', {
 		    {
                     xtype: 'panel',
                     title: 'Tasks',
-		    width: 400,
+		    width: 600,
                     itemId: 'childPanel1'
 		    },
 		    {
@@ -59,7 +70,7 @@ Ext.define('CustomApp', {
                              });
                              filter.toString();
              
-              var _store = Ext.create('Rally.data.WsapiDataStore', {
+              Ext.create('Rally.data.WsapiDataStore', {
                  model: 'Task',
                  fetch: [ 'DragAndDropRank','FormattedID','Name','State','RevisionHistory'],
                  autoLoad: true,
@@ -68,15 +79,12 @@ Ext.define('CustomApp', {
                     {
                         property: 'DragAndDropRank',
                         direction: 'ASC'
-                        //direction: 'DESC'
                     }
                  ],
 		 
                  listeners: {
-                     load: function(store,records, success){
-                        this._updateGrid(_store);
-                     },
-                        scope: this
+		    load: this._onTaskDataLoaded,
+		    scope: this
                  }
              });
            }
@@ -85,21 +93,38 @@ Ext.define('CustomApp', {
             
 	   }
         },
+	
+	_onTaskDataLoaded: function(store, data) {
+        this._customRecords = [];
+        Ext.Array.each(data, function(task, index) {
+            this._customRecords.push({
+                _ref: task.get('_ref'),
+                FormattedID: task.get('FormattedID'),
+                Name: task.get('Name'),
+                RevisionID: Rally.util.Ref.getOidFromRef(task.get('RevisionHistory')),
+                RevisionNumber: 'not loaded'
+            });
+        }, this);
 
-        _updateGrid: function(_store){
+       // this._getRevisionHistory(data);
+       this._updateGrid(store,data);
+    },
+
+        _updateGrid: function(store, data){
         if (!this.down('#g')) {
-   		this._createGrid(_store);
+   		this._createGrid(store,data);
    	}
    	else{
-   		this.down('#g').reconfigure(_store);
+   		this.down('#g').reconfigure(store);
    	}
    },
-        _createGrid: function(_store){
+        _createGrid: function(store,data){
             var that = this;
-   	console.log("load grid", _store);
+   	console.log("_createGrid: store:", store);
+	console.log("_createGrid: data:", data);
    	var g = Ext.create('Rally.ui.grid.Grid', {
                 id: 'g',
-   		store: _store,
+   		store: store,
                 enableRanking: true,
                 columnCfgs: [
                                     {text: 'Formatted ID', dataIndex: 'FormattedID'},
@@ -115,7 +140,11 @@ Ext.define('CustomApp', {
 						    width: 50,
 						    handler: function () {
 							//Ext.Msg.alert('Info', r.get('RevisionHistory')._ref)
-				                        that.getRevisions(r.get('RevisionHistory')._ref); 
+				                        //that.getRevisions(r.get('RevisionHistory')._ref);
+							//var rref = r.get('RevisionHistory')._ref;
+							//console.log(r.get('RevisionHistory')._ref);
+							console.log('r', r.data);
+							that._getRevisionHistory(data, r.data);
 						    }
 						});
 					    }, 50);
@@ -129,8 +158,60 @@ Ext.define('CustomApp', {
    	this.down('#childPanel1').add(g); 
    },
    
-   getRevisions:function(refRevisions){
-	console.log('refRevisions', refRevisions);
-   
-	},
+    _getRevisionHistory: function(taskList, task) {
+	this._task = task;
+	console.log('_getRevisionHistory');
+		console.log(taskList);
+		console.log(task);
+                this._revisionModel = Rally.data.ModelFactory.getModel({
+                    type: 'RevisionHistory',
+                    scope: this,
+		    success: this._onModelCreated
+		});
+       
+    },
+    _onModelCreated: function(model) {
+	console.log('_onModelCreated');
+	var that = this;
+	console.log('this._task',this._task);
+	console.log('this._task rev history',this._task.RevisionHistory);
+
+        model.load(Rally.util.Ref.getOidFromRef(that._task.RevisionHistory._ref),{
+            scope: this,
+            success: this._onModelLoaded
+        });
+
+    },
+    
+     _onModelLoaded: function(record, operation) {
+	console.log('_onModelLoaded - record: ',record );
+        record.getCollection('Revisions').load({
+            fetch: true,
+            scope: this,
+            callback: function(revisions, operation, success) {
+                this._onRevisionsLoaded(revisions, record);
+            }
+        }); 
+    },
+    
+    _onRevisionsLoaded: function(revisions, record) {
+        var lastRev = _.first(revisions).data;
+	console.log('_onRevisionsLoaded: ',lastRev.Description, lastRev.RevisionNumber );
+	this._displayLastRevision(lastRev.Description,lastRev.RevisionNumber );
+	
+    },
+    
+    _displayLastRevision:function(desc, num){
+	if (this.down('c')) {
+	    Ext.getCmp(this._c).html = '';
+	}
+	this._c = Ext.create('Ext.Component',{
+	    xtype: 'component',
+	    id: 'c',
+	    html: '<b>Description:</b>' + desc + '<br /><b>Revision Number:</b>' + num
+	});
+	this.down('#childPanel2').add(this._c);
+
+    }
 });
+
